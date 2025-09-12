@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+.env
+.env.*
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+*.nbconvert/
+
+# Data / outputs
+IA/data/raw/
+IA/data/processed/
+IA/logs/
+**/logs/
+**/outputs/
+**/artifacts/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.iml
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Misc
+*.log
+*.tmp
+*.bak
