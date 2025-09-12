@@ -4,26 +4,13 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from src.config.settings import GOOGLE_API_KEY
 from pydantic import BaseModel, Field
 from typing import List, Literal, Dict
-
+from langchain_core.messages import SystemMessage, HumanMessage
 
 
 def main() -> None:
 	# Validação: garante que a variável de ambiente com a chave da API está definida
 	if not GOOGLE_API_KEY:
 		raise RuntimeError("Defina GOOGLE_API_KEY no seu .env antes de executar.")
-
-	# Instancia o cliente do modelo generativo (Gemini) com parâmetros de inferência
-	llm = ChatGoogleGenerativeAI(
-		model="gemini-1.5-flash",
-		temperature=0.3,
-		google_api_key=GOOGLE_API_KEY,
-	)
-
-	# Faz uma chamada simples ao modelo para validar a integração
-	response = llm.invoke("Diga olá em português e se apresente brevemente de maneira criativa.")
-
-	# Exibe o conteúdo retornado pelo modelo no console
-	print(response.content)
 
 # Prompt de triagem: instruções para classificar mensagens de Service Desk
 TRIAGEM_PROMPT = (
@@ -47,6 +34,28 @@ class TriagemOut(BaseModel):
 	urgencia: Literal["BAIXA", "MEDIA", "ALTA"]
 	campos_faltantes: List[str] = Field(default_factory=list)
 
+llm_triagem = ChatGoogleGenerativeAI(
+		model="gemini-1.5-flash",
+		temperature=0.3,
+		google_api_key=GOOGLE_API_KEY,
+	)
+
+triagem_chain = llm_triagem.with_structured_output(TriagemOut)
+
+def triagem(mensagem: str) -> Dict:
+	saida: TriagemOut = triagem_chain.invoke([
+		SystemMessage(content=TRIAGEM_PROMPT),
+		HumanMessage(content=mensagem)
+		])
+	return saida.model_dump()
+
+testes = ["Como abrir um chamado?",
+"Último dia de pagamento é hoje e minha máquina quebrou, como solicito outra?",
+"Como aprender mais sobre os processos da empresa?",
+"Onde consultar as férias que eu tenho direito?"]
+
+for msg_teste in testes:
+	print(f"Pergunta: {msg_teste}\n -> Resposta: {triagem(msg_teste)}\n")
 
 # Ponto de entrada do script: executa a função principal quando chamado diretamente
 if __name__ == "__main__":
