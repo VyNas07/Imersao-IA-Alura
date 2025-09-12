@@ -16,7 +16,6 @@ def main() -> None:
 	print(response.content)
 
 	
-    
 
 
 if __name__ == "__main__":
