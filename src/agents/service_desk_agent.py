@@ -1,34 +1,38 @@
 """
-Agente inteligente de Service Desk que combina triagem e RAG.
+Agente inteligente de Service Desk com LangGraph.
+
+Este agente usa LangGraph para orquestrar o fluxo de processamento,
+permitindo fluxos condicionais e reutilização de componentes.
 """
 from typing import Dict, Optional
-from src.chains import TriagemChain
-from src.tools.rag_local import RAGSystemLocal
-from src.models import TriagemOut
+from src.graph import ServiceDeskGraph
+from src.graph.state import ServiceDeskState
 
 
 class ServiceDeskAgent:
     """
-    Agente inteligente que combina triagem e RAG para processar solicitações.
+    Agente inteligente que usa LangGraph para orquestrar o processamento.
+    
+    Combina triagem, RAG e geração de recomendações através de um
+    grafo de fluxo de trabalho condicional.
     """
     
     def __init__(self):
-        """Inicializa o agente."""
-        self.triagem_chain = TriagemChain()
-        self.rag_system = RAGSystemLocal()
+        """Inicializa o agente com o grafo LangGraph."""
+        self.graph = ServiceDeskGraph()
         self.initialized = False
     
     def inicializar(self) -> None:
         """Inicializa o agente e seus sistemas."""
         if not self.initialized:
-            print("🤖 Inicializando agente de Service Desk...")
-            self.rag_system.inicializar()
+            print("🤖 Inicializando agente de Service Desk com LangGraph...")
+            # O grafo é inicializado sob demanda quando necessário
             self.initialized = True
             print("✅ Agente inicializado com sucesso!")
     
     def processar_solicitacao(self, mensagem: str) -> Dict:
         """
-        Processa uma solicitação completa usando triagem + RAG.
+        Processa uma solicitação usando o grafo LangGraph.
         
         Args:
             mensagem: Mensagem do usuário
@@ -39,68 +43,86 @@ class ServiceDeskAgent:
         if not self.initialized:
             self.inicializar()
         
-        # 1. Triagem da mensagem
-        resultado_triagem = self.triagem_chain.processar(mensagem)
+        # Processa através do grafo LangGraph
+        estado_final = self.graph.processar(mensagem)
         
-        # 2. Resposta baseada na triagem
-        resposta_rag = None
-        documentos_relevantes = []
+        # Converte o estado para o formato esperado
+        return self._converter_estado_para_dict(estado_final)
+    
+    def _converter_estado_para_dict(self, estado) -> Dict:
+        """
+        Converte o estado do grafo para o formato de dicionário esperado.
         
-        if resultado_triagem['decisão'] in ['AUTO_RESOLVER', 'PEDIR_INFO']:
-            # Busca resposta no RAG
-            try:
-                resultado_rag = self.rag_system.consultar(mensagem)
-                resposta_rag = resultado_rag['resposta']
-                documentos_relevantes = resultado_rag['documentos_relevantes']
-            except Exception as e:
-                resposta_rag = f"Erro ao consultar políticas: {e}"
+        Args:
+            estado: Estado final do grafo LangGraph (pode ser dict ou ServiceDeskState)
+            
+        Returns:
+            Dict com resultado no formato compatível
+        """
+        # Se o estado já é um dicionário, retorna diretamente
+        if isinstance(estado, dict):
+            return {
+                'mensagem_original': estado.get('mensagem_original', ''),
+                'triagem': estado.get('triagem'),
+                'resposta_rag': estado.get('resposta_rag'),
+                'documentos_relevantes': estado.get('documentos_relevantes', []),
+                'recomendacao': estado.get('recomendacao'),
+                'acao_sugerida': estado.get('acao_sugerida'),
+                'erro': estado.get('erro'),
+                'finalizado': estado.get('finalizado', False),
+                'tentativas': estado.get('tentativas', 0),
+                'estatisticas': self.graph.obter_estatisticas(estado)
+            }
         
-        # 3. Gera recomendação final
-        recomendacao = self._gerar_recomendacao(resultado_triagem, resposta_rag)
-        
+        # Se é um objeto ServiceDeskState, converte
         return {
-            'mensagem_original': mensagem,
-            'triagem': resultado_triagem,
-            'resposta_rag': resposta_rag,
-            'documentos_relevantes': documentos_relevantes,
-            'recomendacao': recomendacao,
-            'acao_sugerida': self._determinar_acao(resultado_triagem)
+            'mensagem_original': estado.mensagem_original,
+            'triagem': estado.triagem,
+            'resposta_rag': estado.resposta_rag,
+            'documentos_relevantes': estado.documentos_relevantes,
+            'recomendacao': estado.recomendacao,
+            'acao_sugerida': estado.acao_sugerida,
+            'erro': estado.erro,
+            'finalizado': estado.finalizado,
+            'tentativas': estado.tentativas,
+            'estatisticas': self.graph.obter_estatisticas(estado)
         }
     
-    def _gerar_recomendacao(self, triagem: Dict, resposta_rag: Optional[str]) -> str:
-        """Gera uma recomendação baseada na triagem e resposta RAG."""
-        decisao = triagem['decisão']
-        urgencia = triagem['urgencia']
+    def processar_com_historico(self, mensagem: str, historico: list = None) -> Dict:
+        """
+        Processa uma mensagem considerando histórico de conversas.
         
-        if decisao == 'AUTO_RESOLVER':
-            if resposta_rag:
-                return f"✅ Esta solicitação pode ser respondida automaticamente. Resposta baseada nas políticas: {resposta_rag[:200]}..."
-            else:
-                return "✅ Esta solicitação pode ser respondida automaticamente com base nas políticas da empresa."
+        Args:
+            mensagem: Mensagem atual do usuário
+            historico: Lista de mensagens anteriores
+            
+        Returns:
+            Dict com resultado completo da análise
+        """
+        if not self.initialized:
+            self.inicializar()
         
-        elif decisao == 'PEDIR_INFO':
-            campos = ', '.join(triagem['campos_faltantes']) if triagem['campos_faltantes'] else 'informações específicas'
-            return f"❓ Solicite mais informações do usuário: {campos}. {resposta_rag[:100] if resposta_rag else ''}"
+        # Processa através do grafo com histórico
+        estado_final = self.graph.processar_com_historico(mensagem, historico)
         
-        else:  # ABRIR_CHAMADO
-            return f"🎫 Abra um chamado no sistema de Service Desk. Urgência: {urgencia}. Motivo: Solicitação que requer processamento manual."
+        # Converte o estado para o formato esperado
+        return self._converter_estado_para_dict(estado_final)
     
-    def _determinar_acao(self, triagem: Dict) -> str:
-        """Determina a ação sugerida baseada na triagem."""
-        decisao = triagem['decisão']
-        urgencia = triagem['urgencia']
+    def obter_estatisticas(self, mensagem: str) -> Dict:
+        """
+        Obtém estatísticas do processamento de uma mensagem.
         
-        if decisao == 'AUTO_RESOLVER':
-            return "Responder automaticamente"
-        elif decisao == 'PEDIR_INFO':
-            return "Solicitar mais informações"
-        else:  # ABRIR_CHAMADO
-            if urgencia == 'ALTA':
-                return "Abrir chamado URGENTE"
-            elif urgencia == 'MEDIA':
-                return "Abrir chamado normal"
-            else:
-                return "Abrir chamado de baixa prioridade"
+        Args:
+            mensagem: Mensagem para processar
+            
+        Returns:
+            Dict com estatísticas do processamento
+        """
+        if not self.initialized:
+            self.inicializar()
+        
+        estado_final = self.graph.processar(mensagem)
+        return self.graph.obter_estatisticas(estado_final)
     
     def consultar_politicas(self, pergunta: str) -> Dict:
         """
@@ -115,7 +137,9 @@ class ServiceDeskAgent:
         if not self.initialized:
             self.inicializar()
         
-        return self.rag_system.consultar(pergunta)
+        # Usa o sistema RAG diretamente do grafo
+        self.graph.nodes._inicializar_rag()
+        return self.graph.nodes.rag_system.consultar(pergunta)
     
     def classificar_mensagem(self, mensagem: str) -> Dict:
         """
@@ -127,4 +151,8 @@ class ServiceDeskAgent:
         Returns:
             Dict com resultado da triagem
         """
-        return self.triagem_chain.processar(mensagem)
+        if not self.initialized:
+            self.inicializar()
+        
+        # Usa a chain de triagem diretamente do grafo
+        return self.graph.nodes.triagem_chain.processar(mensagem)

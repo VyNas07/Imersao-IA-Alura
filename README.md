@@ -68,6 +68,7 @@ src/
 
 - **Python 3.12+** - Linguagem principal
 - **LangChain** - Framework para aplicações com LLM
+- **LangGraph** - Orquestração de agentes com grafos
 - **Google Gemini** - Modelo de linguagem
 - **FAISS** - Indexação vetorial
 - **Pydantic** - Validação de dados

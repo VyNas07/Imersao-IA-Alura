@@ -5,6 +5,7 @@
 ### Backend
 - **Python 3.12+** - Linguagem principal
 - **LangChain** - Framework para aplicações com LLM
+- **LangGraph** - Orquestração de agentes com grafos de fluxo
 - **Pydantic** - Validação de dados e modelos
 - **FAISS** - Indexação vetorial para busca semântica
 
@@ -21,27 +22,41 @@
 
 ### Padrão de Design
 - **Agent Pattern** - Agente central que orquestra o fluxo
+- **Graph Pattern** - Fluxo de trabalho com LangGraph
 - **Chain of Responsibility** - Cadeias de processamento
 - **Repository Pattern** - Abstração de acesso a dados
 
-### Fluxo de Dados
+### Fluxo de Dados (LangGraph)
 ```
-Usuário → Agente → Triagem → RAG → Recomendação → Resposta
+Usuário → Triagem → [Decisão]
+                    ├─ AUTO_RESOLVER → RAG → Recomendação → Resposta
+                    ├─ PEDIR_INFO → Solicitar Info → RAG → Recomendação
+                    └─ ABRIR_CHAMADO → Recomendação → Resposta
 ```
 
 ### Componentes
 
-#### 1. ServiceDeskAgent
-- Orquestra todo o fluxo de processamento
-- Combina triagem e RAG
-- Gera recomendações finais
+#### 1. ServiceDeskGraph (LangGraph)
+- Orquestra fluxo de trabalho com grafos
+- Define nós e arestas condicionais
+- Gerencia estado compartilhado
 
-#### 2. TriagemChain
+#### 2. ServiceDeskNodes
+- Implementa lógica de cada nó do grafo
+- Triagem, RAG, recomendação, solicitação de info
+- Processamento modular e reutilizável
+
+#### 3. ServiceDeskState
+- Estado compartilhado entre nós
+- Validação com Pydantic
+- Persistência de dados durante execução
+
+#### 4. TriagemChain
 - Classifica mensagens usando LLM estruturado
 - Valida saída com Pydantic
 - Define regras de negócio
 
-#### 3. RAGSystem
+#### 5. RAGSystem
 - Carrega e processa documentos PDF
 - Cria índice vetorial com FAISS
 - Realiza busca semântica
@@ -57,6 +72,12 @@ Usuário → Agente → Triagem → RAG → Recomendação → Resposta
 - Indexação vetorial eficiente
 - Suporte a busca semântica
 - Integração com LangChain
+
+### Por que LangGraph?
+- Fluxos condicionais inteligentes
+- Reutilização de componentes
+- Estado compartilhado entre nós
+- Fácil extensão e manutenção
 
 ### Por que Embeddings Locais?
 - Evita limites de quota de APIs
