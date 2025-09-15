@@ -4,7 +4,6 @@ Ponto de entrada principal do sistema de triagem de Service Desk.
 from src.config.settings import GOOGLE_API_KEY
 from src.chains import TriagemChain
 
-
 def main() -> None:
     """
     Função principal que executa os testes do sistema de triagem.

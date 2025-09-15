@@ -56,7 +56,4 @@ Se tudo estiver correto, você verá o sistema de triagem processando casos de t
 
 ### Próximos passos
 
-- Adicionar agentes em `src/agents` e ferramentas em `src/tools`
-- Criar cadeias em `src/chains` (LangChain) e conectar às ferramentas
-- Versionar dados de exemplo em `data/` e manter logs em `logs/`
-
+Ir no arquivo COMO_USAR.md para ter um tutorial de como rodar o projeto.
