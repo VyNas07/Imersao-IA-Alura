@@ -1,6 +1,10 @@
 langchain==0.3.27
 langchain-google-genai==2.0.10
+langchain-community
+langchain-text-splitters
 google-generativeai==0.8.5
 python-dotenv==1.0.1
 pydantic==2.11.7
+faiss-cpu
+pymupdf
 

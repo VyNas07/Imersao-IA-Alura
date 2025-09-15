@@ -48,11 +48,11 @@ pip install -r IA/requirements.txt
 
 ### Rodando o exemplo
 
-```
-py IA/src/main.py
+```bash
+python -m src.main
 ```
 
-Se tudo estiver correto, você verá uma resposta do modelo Gemini.
+Se tudo estiver correto, você verá o sistema de triagem processando casos de teste.
 
 ### Próximos passos
 
